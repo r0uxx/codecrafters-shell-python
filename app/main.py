@@ -36,6 +36,10 @@ def _find_executable_path(cmd: str) -> str:
     
     return ""
 
+def pwd_builtin(*args, **kwargs):
+    """Prints the abolute full working directory."""
+    print(os.getcwd())
+
 def _execute_subprocess(cmd: str, args: list[str]):
     """Executes command in a subshell."""
     os.system(f"{cmd} {" ".join(args)}")
@@ -46,6 +50,7 @@ __BUILTINS = {
     "exit": exit_builtin,
     "echo": echo_builtin,
     "type": type_builtin,
+    "pwd": pwd_builtin,
 }
 
 def main():
