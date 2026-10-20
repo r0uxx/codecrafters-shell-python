@@ -1,4 +1,6 @@
 import sys
+import os
+from pathlib import Path
 
 def exit_builtin(*args, **kwargs) -> None:
     """Terminates the shell process."""
@@ -13,12 +15,25 @@ def type_builtin(cmd: str, arguments: list[str], **kwargs) -> None:
     if len(arguments) != 1:
         return print(f"Error in length of arguments passed: {len(arguments)}, expected: 1")
 
-    builtin = arguments[0]
-    cb = __BUILTINS.get(builtin)
+    command = arguments[0]
+    cb = __BUILTINS.get(command)
     if cb:
-        return print(f"{builtin} is a shell builtin")
+        return print(f"{command} is a shell builtin")
 
-    print(f"{builtin}: not found")
+    print(_find_executable(command))
+
+
+def _find_executable(cmd: str) -> str:
+    """Checks if a command is an Executable by searching the OS PATH env directories."""
+    path_env = os.getenv("PATH", "")
+    path_dirs = path_env.split(os.pathsep)
+    for dir in path_dirs:
+        full_path = os.path.join(dir, cmd)
+        if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
+            return f"{cmd} is {full_path}"
+    
+    return f"{cmd}: not found"
+
 
 # Dictionairy of supported commands and their corresponding callbacks
 __BUILTINS = {
