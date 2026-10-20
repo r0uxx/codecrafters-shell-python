@@ -46,7 +46,10 @@ def cd_builtin(cmd: str, arguments:list[str], *args, **kwargs):
         return print(f"Error: unexpected arguments: {arguments}, only pass the directory you want to change to.")
 
     path = arguments[0]
-    if os.path.exists(path):
+    if path and path.startswith("~") and len(path) == 1:
+        path = os.getenv("HOME", "")
+
+    if os.path.isdir(path):
         return os.chdir(path)
 
     return print(f"{cmd}: {path}: No such file or directory")
