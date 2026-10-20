@@ -40,10 +40,21 @@ def pwd_builtin(*args, **kwargs):
     """Prints the abolute full working directory."""
     print(os.getcwd())
 
+def cd_builtin(cmd: str, arguments:list[str], *args, **kwargs):
+    """Changes current working directory."""
+    if len(arguments) != 1:
+        return print(f"Error: unexpected arguments: {arguments}, only pass the directory you want to change to.")
+
+    path = arguments[0]
+    if os.path.exists(path):
+        return os.chdir(path)
+
+    return print(f"{cmd}: {path}: No such file or directory")
+
 def _execute_subprocess(cmd: str, args: list[str]):
     """Executes command in a subshell."""
     os.system(f"{cmd} {" ".join(args)}")
-    
+
 
 # Dictionairy of supported commands and their corresponding callbacks
 __BUILTINS = {
@@ -51,6 +62,7 @@ __BUILTINS = {
     "echo": echo_builtin,
     "type": type_builtin,
     "pwd": pwd_builtin,
+    "cd": cd_builtin,
 }
 
 def main():
