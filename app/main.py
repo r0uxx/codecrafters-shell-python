@@ -1,6 +1,5 @@
 import sys
 import os
-from pathlib import Path
 
 def exit_builtin(*args, **kwargs) -> None:
     """Terminates the shell process."""
@@ -15,25 +14,32 @@ def type_builtin(cmd: str, arguments: list[str], **kwargs) -> None:
     if len(arguments) != 1:
         return print(f"Error in length of arguments passed: {len(arguments)}, expected: 1")
 
-    command = arguments[0]
-    cb = __BUILTINS.get(command)
+    builtin_or_executable = arguments[0]
+    cb = __BUILTINS.get(builtin_or_executable)
     if cb:
-        return print(f"{command} is a shell builtin")
+        return print(f"{builtin_or_executable} is a shell builtin")
 
-    print(_find_executable(command))
+    exec_path = _find_executable_path(builtin_or_executable)
+    if exec_path:
+        return print(f"{builtin_or_executable} is {exec_path}")
+    return print(f"{builtin_or_executable}: not found")
 
 
-def _find_executable(cmd: str) -> str:
+def _find_executable_path(cmd: str) -> str:
     """Checks if a command is an Executable by searching the OS PATH env directories."""
     path_env = os.getenv("PATH", "")
     path_dirs = path_env.split(os.pathsep)
     for dir in path_dirs:
         full_path = os.path.join(dir, cmd)
         if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-            return f"{cmd} is {full_path}"
+            return full_path
     
-    return f"{cmd}: not found"
+    return ""
 
+def _execute_subprocess(cmd: str, args: list[str]):
+    """Spawns subprocess and executes command with passed arguments."""
+    os.system(f"{cmd} {" ".join(args)}")
+    
 
 # Dictionairy of supported commands and their corresponding callbacks
 __BUILTINS = {
@@ -53,11 +59,15 @@ def main():
 
         args = command.split(" ")
         command = args[0]
-        if not (cb := __BUILTINS.get(command)):
-            print(f"{command}: command not found")
+        if cb := __BUILTINS.get(command):
+            cb(command, args[1:])
             continue
 
-        cb(args[0], args[1:])
+        elif path := _find_executable_path(command):
+            _execute_subprocess(command, args[1:])
+            continue
+
+        print(f"{command}: command not found")
 
 
 if __name__ == "__main__":
