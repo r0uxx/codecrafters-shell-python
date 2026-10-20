@@ -79,6 +79,7 @@ def get_builtin_cb(cmd: str) -> Callable | None:
     return __BUILTINS.get(cmd)
 
 def is_executable(cmd: str) -> bool:
+    """Checks if the given command is an executable found in PATH."""
     res = type_builtin(arguments=[cmd], to_print=False)
     return not ("builtin" in res or "unknown" in res)
 
