@@ -37,7 +37,7 @@ def _find_executable_path(cmd: str) -> str:
     return ""
 
 def _execute_subprocess(cmd: str, args: list[str]):
-    """Spawns subprocess and executes command with passed arguments."""
+    """Executes command in a subshell."""
     os.system(f"{cmd} {" ".join(args)}")
     
 
