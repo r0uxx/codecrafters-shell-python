@@ -37,22 +37,21 @@ def complete_command(text: str, state: int) -> str | None:
 def setup_readline() -> None:
     """Configure shell command autocompletion (my mac uses ^I rl_complete)."""
     readline.set_completer(CommandCompleter())
-    readline.parse_and_bind("tab: complete")
-    readline.parse_and_bind("set bell-style audible")
-    readline.parse_and_bind("set show-all-if-ambiguous off")
-    readline.parse_and_bind("set show-all-if-unmodified off")
-    readline.parse_and_bind("set print-completions-horizontally on")
+    readline.set_completer_delims(" \t\n")
 
-    backend = getattr(readline, "backend", None)
-    is_libedit = backend == "editline" or (
-        backend is None
-        and "libedit" in (readline.__doc__ or "").lower()
+    is_libedit = (
+        getattr(readline, "backend", None) == "editline"
+        or "libedit" in (readline.__doc__ or "").lower()
     )
 
     if is_libedit:
         readline.parse_and_bind("bind ^I rl_complete")
     else:
         readline.parse_and_bind("tab: complete")
+        readline.parse_and_bind("set bell-style audible")
+        readline.parse_and_bind("set show-all-if-ambiguous off")
+        readline.parse_and_bind("set show-all-if-unmodified off")
+        readline.parse_and_bind("set print-completions-horizontally on")
 
 def execute_command(cmd, args, stdout=None, stderr=None):
     """Executes a builtin or external command."""

@@ -26,12 +26,23 @@ class CommandCompleter:
 
     def __call__(self, text: str, state: int) -> str | None:
         if state == 0:
-            if readline.get_begidx() != 0:
-                self.matches = []
-            else:
+            if readline.get_begidx() == 0:
                 commands = set(BUILTINS) | get_executable_names()
                 self.matches = sorted(
                     cmd for cmd in commands if cmd.startswith(text)
                 )
+            else:
+                try:
+                    with os.scandir(".") as entries:
+                        self.matches = sorted(
+                            entry.name
+                            for entry in entries
+                            if entry.is_file() and entry.name.startswith(text)
+                        )
+                except OSError:
+                    self.matches = []
 
-        return f"{self.matches[state]} " if state < len(self.matches) else None
+            if len(self.matches) == 1:
+                self.matches[0] += " "
+
+        return self.matches[state] if state < len(self.matches) else None
