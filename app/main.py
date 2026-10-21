@@ -2,6 +2,7 @@ import sys
 import readline
 import os
 
+from app.completion import CommandCompleter
 from contextlib import redirect_stdout
 from app.parser import parse_command
 from app.utils import (
@@ -29,13 +30,18 @@ def complete_command(text: str, state: int) -> str | None:
     matches = [cmd for cmd in completions if cmd.startswith(text)]
     if matches:
         return f"{matches[state]} " if state < len(matches) else print("\x07", end="", flush=True)
-
-    return print("\x07", end="", flush=True)
+    else:
+        sys.stdout.write("\a")
 
 
 def setup_readline() -> None:
     """Configure shell command autocompletion (my mac uses ^I rl_complete)."""
-    readline.set_completer(complete_command)
+    readline.set_completer(CommandCompleter())
+    readline.parse_and_bind("tab: complete")
+    readline.parse_and_bind("set bell-style audible")
+    readline.parse_and_bind("set show-all-if-ambiguous off")
+    readline.parse_and_bind("set show-all-if-unmodified off")
+    readline.parse_and_bind("set print-completions-horizontally on")
 
     backend = getattr(readline, "backend", None)
     is_libedit = backend == "editline" or (
@@ -67,8 +73,7 @@ def main():
     """Main shell loop."""
     setup_readline()
     while True:
-        sys.stdout.write("$ ")
-        shell_input = input()
+        shell_input = input("$ ").strip()
         if not shell_input:
             continue
 
