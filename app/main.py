@@ -12,8 +12,6 @@ from app.utils import (
     BUILTINS,
 )
 
-PATH = get_path_dirs()
-
 def complete_command(text: str, state: int) -> str | None:
     """Autocomplete supported shell commands."""
     if readline.get_begidx() != 0:
@@ -22,7 +20,7 @@ def complete_command(text: str, state: int) -> str | None:
     completions = {builtin for builtin in BUILTINS}
     
     executables = set()
-    for dir in PATH:
+    for dir in get_path_dirs():
         res = list(os.walk(dir))
         if res:
             executables = executables.union(set(res[0][-1]))
