@@ -1,9 +1,34 @@
 import sys
-import shlex
-from app.utils import get_builtin_cb, is_executable, run_executable
+
+from contextlib import redirect_stdout
+
+from app.parser import parse_command
+from app.utils import (
+    get_builtin_cb,
+    is_executable,
+    run_executable,
+)
+
+
+def execute_command(cmd, args, stdout=None):
+    """Executes a builtin or external command."""
+
+    if cb := get_builtin_cb(cmd):
+        if stdout is None:
+            cb(cmd, args)
+        else:
+            with redirect_stdout(stdout):
+                cb(cmd, args)
+
+    elif is_executable(cmd):
+        run_executable(cmd, args, stdout=stdout)
+
+    else:
+        print(f"{cmd}: command not found", file=sys.stderr)
+
 
 def main():
-    """Main function."""
+    """Main shell loop."""
     while True:
         sys.stdout.write("$ ")
         shell_input = input().strip()
@@ -11,20 +36,24 @@ def main():
             continue
 
         try:
-            keyword, *args = shlex.split(shell_input)
+            tokens, output_path = parse_command(shell_input)
         except ValueError as e:
-            print(f"Error: {e}")
+            print(f"Error: {e}", file=sys.stderr)
             continue
 
-        if cb := get_builtin_cb(keyword):
-            cb(keyword, args)
+        if not tokens:
             continue
 
-        elif is_executable(keyword):
-            run_executable(keyword, args)
-            continue
+        keyword, *args = tokens
+        try:
+            if output_path is not None:
+                with open(output_path, "w", encoding="utf-8") as file:
+                    execute_command(keyword, args, stdout=file)
+            else:
+                execute_command(keyword, args)
 
-        print(f"{keyword}: command not found")
+        except OSError as e:
+            print(f"shell: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":

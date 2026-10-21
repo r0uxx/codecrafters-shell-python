@@ -2,7 +2,7 @@ import sys
 import os
 import subprocess
 
-from typing import Callable
+from typing import Callable, TextIO
 
 PATH = os.getenv("PATH", "")
 
@@ -85,6 +85,10 @@ def is_executable(cmd: str) -> bool:
     res = type_builtin(arguments=[cmd], to_print=False)
     return not ("builtin" in res or "unknown" in res)
 
-def run_executable(cmd: str, args: list[str]) -> None:
-    """Executes command in a subprocess."""
-    subprocess.run([cmd, *args])
+def run_executable(
+    cmd: str,
+    args: list[str],
+    stdout: TextIO | None = None,
+) -> None:
+    """Executes a command with optional stdout redirection."""
+    subprocess.run([cmd, *args], stdout=stdout)
