@@ -22,7 +22,7 @@ def type_builtin(cmd: str = "type", arguments: list[str] | None = None, to_print
         return "unkown"
 
     builtin_or_executable = arguments[0]
-    cb = __BUILTINS.get(builtin_or_executable)
+    cb = BUILTINS.get(builtin_or_executable)
     if cb:
         if to_print:
             print(f"{builtin_or_executable} is a shell builtin")
@@ -40,13 +40,17 @@ def type_builtin(cmd: str = "type", arguments: list[str] | None = None, to_print
 
 def _find_executable_path(cmd: str) -> str:
     """Checks if a command is an Executable by searching the OS PATH env directories."""
-    path_dirs = PATH.split(os.pathsep)
+    path_dirs = get_path_dirs()
     for dir in path_dirs:
         full_path = os.path.join(dir, cmd)
         if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
             return full_path
     
     return ""
+
+def get_path_dirs() -> list[str]:
+    """Returns the path directories."""
+    return PATH.split(os.pathsep)
 
 def pwd_builtin(*args, **kwargs) -> None:
     """Prints the abolute full working directory."""
@@ -68,7 +72,7 @@ def cd_builtin(cmd: str, arguments:list[str], *args, **kwargs) -> None:
 
 
 # Dictionairy of supported commands and their corresponding callbacks
-__BUILTINS = {
+BUILTINS = {
     "exit": exit_builtin,
     "echo": echo_builtin,
     "type": type_builtin,
@@ -78,7 +82,7 @@ __BUILTINS = {
 
 def get_builtin_cb(cmd: str) -> Callable | None:
     """Returns a builtin if found else None."""
-    return __BUILTINS.get(cmd)
+    return BUILTINS.get(cmd)
 
 def is_executable(cmd: str) -> bool:
     """Checks if the given command is an executable found in PATH."""

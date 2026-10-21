@@ -1,5 +1,6 @@
 import sys
 import readline
+import os
 
 from contextlib import redirect_stdout
 from app.parser import parse_command
@@ -7,19 +8,31 @@ from app.utils import (
     get_builtin_cb,
     is_executable,
     run_executable,
+    get_path_dirs,
+    BUILTINS,
 )
 
-COMPLETIONS = ("echo", "exit", "codecrafters")
-
+PATH = get_path_dirs()
 
 def complete_command(text: str, state: int) -> str | None:
     """Autocomplete supported shell commands."""
     if readline.get_begidx() != 0:
         return None
 
-    matches = [cmd for cmd in COMPLETIONS if cmd.startswith(text)]
+    completions = {builtin for builtin in BUILTINS}
+    
+    executables = set()
+    for dir in PATH:
+        res = list(os.walk(dir))
+        if res:
+            executables = executables.union(set(res[0][-1]))
 
-    return f"{matches[state]} " if state < len(matches) else None
+    completions = completions.union(executables)
+    matches = [cmd for cmd in completions if cmd.startswith(text)]
+    if matches:
+        return f"{matches[state]} " if state < len(matches) else print("\x07", end="", flush=True)
+
+    return print("\x07", end="", flush=True)
 
 
 def setup_readline() -> None:
