@@ -33,11 +33,17 @@ class CommandCompleter:
                 )
             else:
                 try:
-                    with os.scandir(".") as entries:
+                    constructed_dir = "."
+                    prefix = text
+                    if "/" in text:
+                        path = text.split("/")
+                        prefix = path[-1]
+                        constructed_dir = "/".join(path[:-1]) + "/"
+                    with os.scandir(constructed_dir) as entries:
                         self.matches = sorted(
-                            entry.name
+                            constructed_dir + entry.name if constructed_dir != "." else entry.name
                             for entry in entries
-                            if entry.is_file() and entry.name.startswith(text)
+                            if entry.is_file() and entry.name.startswith(prefix)
                         )
                 except OSError:
                     self.matches = []
