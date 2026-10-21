@@ -3,6 +3,8 @@ import os
 
 from typing import Callable
 
+PATH = os.getenv("PATH", "")
+
 def exit_builtin(*args, **kwargs) -> None:
     """Terminates the shell process."""
     sys.exit()
@@ -37,8 +39,7 @@ def type_builtin(cmd: str = "type", arguments: list[str] | None = None, to_print
 
 def _find_executable_path(cmd: str) -> str:
     """Checks if a command is an Executable by searching the OS PATH env directories."""
-    path_env = os.getenv("PATH", "")
-    path_dirs = path_env.split(os.pathsep)
+    path_dirs = PATH.split(os.pathsep)
     for dir in path_dirs:
         full_path = os.path.join(dir, cmd)
         if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
@@ -85,4 +86,9 @@ def is_executable(cmd: str) -> bool:
 
 def run_executable(cmd: str, args: list[str]) -> None:
     """Executes command in a subshell."""
-    os.system(f"{cmd} {" ".join(args)}")
+    parsed = ""
+    for arg in args:
+        parsed += f"'{arg}' "
+
+    parsed.strip()
+    os.system(f"{cmd} {parsed}")
