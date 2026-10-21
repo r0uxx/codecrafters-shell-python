@@ -1,5 +1,6 @@
 import sys
 import os
+import subprocess
 
 from typing import Callable
 
@@ -85,10 +86,5 @@ def is_executable(cmd: str) -> bool:
     return not ("builtin" in res or "unknown" in res)
 
 def run_executable(cmd: str, args: list[str]) -> None:
-    """Executes command in a subshell."""
-    parsed = ""
-    for arg in args:
-        parsed += f"'{arg}' "
-
-    parsed.strip()
-    os.system(f"{cmd} {parsed}")
+    """Executes command in a subprocess."""
+    subprocess.run([cmd, *args])
