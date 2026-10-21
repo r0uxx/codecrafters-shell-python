@@ -1,10 +1,12 @@
 import shlex
 
-def parse_command(line: str) -> tuple[list[str], str | None, str]:
+def parse_command(line: str) -> tuple[list[str], str | None, str, str]:
     """Parses a command and optional stdout redirection."""
     quote = None
     escaped = False
     std_kwarg = ""
+    file_mode = "w"
+    filename = None
 
     for i, char in enumerate(line):
         if escaped:
@@ -23,11 +25,14 @@ def parse_command(line: str) -> tuple[list[str], str | None, str]:
             continue
 
         if char == ">" and quote is None:
-            if line[i:i + 2] == ">>":
-                raise ValueError("Append redirection is not supported yet")
-
             start = i
-            if (i > 0 and line[i - 1] == "1"and (i == 1 or line[i - 2].isspace())):
+            if line[i:i + 2] == ">>":
+                file_mode = "a"
+                start = i - 1
+                i += 1
+                std_kwarg = "stdout"
+
+            elif (i > 0 and line[i - 1] == "1"and (i == 1 or line[i - 2].isspace())):
                 std_kwarg = "stdout"
                 start = i - 1
                 
@@ -47,6 +52,6 @@ def parse_command(line: str) -> tuple[list[str], str | None, str]:
                 raise ValueError("Missing redirection filename")
 
             filename, *remaining_args = after
-            return before + remaining_args, filename, std_kwarg
+            return before + remaining_args, filename, std_kwarg, file_mode
 
-    return shlex.split(line), None, std_kwarg
+    return shlex.split(line), filename, std_kwarg, file_mode

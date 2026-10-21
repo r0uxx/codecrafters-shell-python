@@ -35,7 +35,7 @@ def main():
             continue
 
         try:
-            tokens, output_path, std_kwarg = parse_command(shell_input)
+            tokens, output_path, std_kwarg, file_mode = parse_command(shell_input)
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             continue
@@ -46,7 +46,7 @@ def main():
         keyword, *args = tokens
         try:
             if output_path is not None:
-                with open(output_path, "w", encoding="utf-8") as file:
+                with open(output_path, file_mode, encoding="utf-8") as file:
                     kwargs = {}
                     if std_kwarg:
                         kwargs[std_kwarg] = file
