@@ -29,8 +29,8 @@ def parse_command(line: str) -> tuple[list[str], str | None, str, str]:
             if line[i:i + 2] == ">>":
                 file_mode = "a"
                 start = i - 1
+                std_kwarg = "stderr" if line[i - 1] == "2" else "stdout"
                 i += 1
-                std_kwarg = "stdout"
 
             elif (i > 0 and line[i - 1] == "1"and (i == 1 or line[i - 2].isspace())):
                 std_kwarg = "stdout"
