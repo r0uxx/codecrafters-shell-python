@@ -10,7 +10,7 @@ from app.utils import (
 )
 
 
-def execute_command(cmd, args, stdout=None):
+def execute_command(cmd, args, stdout=None, stderr=None):
     """Executes a builtin or external command."""
 
     if cb := get_builtin_cb(cmd):
@@ -21,8 +21,7 @@ def execute_command(cmd, args, stdout=None):
                 cb(cmd, args)
 
     elif is_executable(cmd):
-        run_executable(cmd, args, stdout=stdout)
-
+        run_executable(cmd, args, stdout=stdout, stderr=stderr)
     else:
         print(f"{cmd}: command not found", file=sys.stderr)
 
@@ -36,7 +35,7 @@ def main():
             continue
 
         try:
-            tokens, output_path = parse_command(shell_input)
+            tokens, output_path, std_kwarg = parse_command(shell_input)
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             continue
@@ -48,7 +47,11 @@ def main():
         try:
             if output_path is not None:
                 with open(output_path, "w", encoding="utf-8") as file:
-                    execute_command(keyword, args, stdout=file)
+                    kwargs = {}
+                    if std_kwarg:
+                        kwargs[std_kwarg] = file
+
+                    execute_command(keyword, args, **kwargs)
             else:
                 execute_command(keyword, args)
 

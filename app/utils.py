@@ -89,6 +89,7 @@ def run_executable(
     cmd: str,
     args: list[str],
     stdout: TextIO | None = None,
+    stderr: TextIO | None = None,
 ) -> None:
     """Executes a command with optional stdout redirection."""
-    subprocess.run([cmd, *args], stdout=stdout)
+    subprocess.run([cmd, *args], stdout=stdout, stderr=stderr)
