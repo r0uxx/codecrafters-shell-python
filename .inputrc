@@ -1,0 +1,56 @@
+# This file controls the behavior of line input editing for
+# programs that use the GNU Readline library.  Existing
+# programs include FTP, Bash, and GDB.
+#
+# You can re-read the inputrc file with C-x C-r.
+# Lines beginning with '#' are comments.
+#
+# First, include any system-wide bindings and variable
+# assignments from /etc/Inputrc
+$include /etc/Inputrc
+
+#
+# Set various bindings for emacs mode.
+
+set editing-mode emacs 
+
+$if mode=emacs
+
+Meta-Control-h:	backward-kill-word	Text after the function name is ignored
+
+#
+# Arrow keys in keypad mode
+#
+#"\M-OD":        backward-char
+#"\M-OC":        forward-char
+#"\M-OA":        previous-history
+#"\M-OB":        next-history
+#
+# Arrow keys in ANSI mode
+#
+"\M-[D":        backward-char
+"\M-[C":        forward-char
+"\M-[A":        previous-history
+"\M-[B":        next-history
+#
+# Arrow keys in 8 bit keypad mode
+#
+#"\M-\C-OD":       backward-char
+#"\M-\C-OC":       forward-char
+#"\M-\C-OA":       previous-history
+#"\M-\C-OB":       next-history
+#
+# Arrow keys in 8 bit ANSI mode
+#
+#"\M-\C-[D":       backward-char
+#"\M-\C-[C":       forward-char
+#"\M-\C-[A":       previous-history
+#"\M-\C-[B":       next-history
+
+C-q: quoted-insert
+
+$endif
+
+# An old-style binding.  This happens to be the default.
+TAB: complete
+set completion-query-items 150
