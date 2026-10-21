@@ -31,6 +31,8 @@ class CommandCompleter:
                 self.matches = sorted(
                     cmd for cmd in commands if cmd.startswith(text)
                 )
+                if len(self.matches) == 1:
+                    self.matches[0] += " "
             else:
                 try:
                     constructed_dir = "."
@@ -43,12 +45,11 @@ class CommandCompleter:
                         self.matches = sorted(
                             constructed_dir + entry.name if constructed_dir != "." else entry.name
                             for entry in entries
-                            if entry.is_file() and entry.name.startswith(prefix)
+                            if (entry.is_file() or entry.is_dir) and entry.name.startswith(prefix)
                         )
+                        if len(self.matches) == 1:
+                            self.matches[0] += "/" if "." not in self.matches[0] else " "
                 except OSError:
                     self.matches = []
-
-            if len(self.matches) == 1:
-                self.matches[0] += " "
 
         return self.matches[state] if state < len(self.matches) else None
