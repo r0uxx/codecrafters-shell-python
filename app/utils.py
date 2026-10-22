@@ -70,9 +70,13 @@ def cd_builtin(cmd: str, arguments:list[str], *args, **kwargs) -> None:
 
     return print(f"{cmd}: {path}: No such file or directory")
 
-def complete_builtin(*args, **kwargs) -> None:
+def complete_builtin(cmd: str, arguments: list[str], **kwargs) -> None:
     """To implement at a later stage."""
-    ...
+    if not arguments:
+        return print(f"Error")
+
+    if arguments[0].startswith("-p") and len(arguments) > 1:
+        print(f"{cmd}: {arguments[1]}: no completion specification")
 
 
 # Dictionairy of supported commands and their corresponding callbacks
