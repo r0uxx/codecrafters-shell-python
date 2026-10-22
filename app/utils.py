@@ -80,10 +80,15 @@ def complete_builtin(cmd: str, arguments: list[str], **kwargs) -> None:
         if completion_path := COMPLETION_REGISTRY.get(arguments[1]):
             return print(f"{cmd} -C '{completion_path}' {arguments[1]}")
 
-        print(f"{cmd}: {arguments[1]}: no completion specification")
+        return print(f"{cmd}: {arguments[1]}: no completion specification")
 
     if arguments[0].startswith("-C") and len(arguments) > 2:
         COMPLETION_REGISTRY[arguments[2]] = arguments[1]
+        return
+
+    if arguments[0].startswith("-r") and len(arguments) > 1:
+        COMPLETION_REGISTRY.pop(arguments[1])
+        return
 
 
 # Dictionairy of supported commands and their corresponding callbacks
