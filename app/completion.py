@@ -79,20 +79,26 @@ def complete_paths(
     return sorted(matches)
 
 
-def execute_completion(cmd: str) -> list[str]:
+def execute_completion(cmd: str, text: str) -> list[str]:
     """Run the completer script registered for cmd and return its output lines."""
     script_path = COMPLETION_REGISTRY.get(cmd)
     if not script_path:
         return []
 
     line = readline.get_line_buffer()
-    line_split = line.split()
-    w_at_cursor = line_split[-1]
-    w_before_cursor = "" if len(line_split) <= 2 else line_split[-2]
-    os.environ["COMP_LINE"] = line
-    os.environ["COMP_POINT"] = str(readline.get_endidx())
+    w_before_cursor = line[:readline.get_begidx()].split()[-1]
+    env = {
+        **os.environ,
+        "COMP_LINE": line,
+        "COMP_POINT": str(readline.get_endidx()),
+    }
     try:
-        result = subprocess.run([script_path, cmd, w_at_cursor, w_before_cursor], capture_output=True, text=True)
+        result = subprocess.run(
+            [script_path, cmd, text, w_before_cursor],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
     except OSError:
         return []
 
@@ -108,7 +114,7 @@ class CommandCompleter:
             kind, cmd = get_completion_kind(text)
 
             if kind == "completion":
-                self.matches = execute_completion(cmd)
+                self.matches = execute_completion(cmd, text)
             elif kind == "command":
                 self.matches = complete_commands(text)
             else:
