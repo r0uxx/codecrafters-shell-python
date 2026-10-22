@@ -70,6 +70,10 @@ def cd_builtin(cmd: str, arguments:list[str], *args, **kwargs) -> None:
 
     return print(f"{cmd}: {path}: No such file or directory")
 
+def complete_builtin(*args, **kwargs) -> None:
+    """To implement at a later stage."""
+    ...
+
 
 # Dictionairy of supported commands and their corresponding callbacks
 BUILTINS = {
@@ -78,6 +82,7 @@ BUILTINS = {
     "type": type_builtin,
     "pwd": pwd_builtin,
     "cd": cd_builtin,
+    "complete": complete_builtin,
 }
 
 def get_builtin_cb(cmd: str) -> Callable | None:
