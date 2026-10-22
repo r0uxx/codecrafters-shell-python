@@ -5,6 +5,7 @@ import subprocess
 from typing import Callable, TextIO
 
 PATH = os.getenv("PATH", "")
+COMPLETION_REGISTRY = {}
 
 def exit_builtin(*args, **kwargs) -> None:
     """Terminates the shell process."""
@@ -76,7 +77,13 @@ def complete_builtin(cmd: str, arguments: list[str], **kwargs) -> None:
         return print(f"Error")
 
     if arguments[0].startswith("-p") and len(arguments) > 1:
+        if completion_path := COMPLETION_REGISTRY.get(arguments[1]):
+            return print(f"{cmd} -C '{completion_path}' {arguments[1]}")
+
         print(f"{cmd}: {arguments[1]}: no completion specification")
+
+    if arguments[0].startswith("-C") and len(arguments) > 2:
+        COMPLETION_REGISTRY[arguments[2]] = arguments[1]
 
 
 # Dictionairy of supported commands and their corresponding callbacks
