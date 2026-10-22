@@ -35,7 +35,7 @@ def get_completion_kind(text: str) -> tuple[str, str]:
     if previous_words[0] == "cd":
         return "directory", ""
 
-    if len(previous_words) == 1 and line_before_word.endswith(" "):
+    if previous_words[0] in COMPLETION_REGISTRY:
         return "completion", previous_words[0]
 
     return "path", ""
@@ -79,20 +79,18 @@ def complete_paths(
     return sorted(matches)
 
 
-def execute_completion(cmplt: str) -> list[str]:
-    matches = []
-    res = ""
+def execute_completion(cmd: str) -> list[str]:
+    """Run the completer script registered for cmd and return its output lines."""
+    script_path = COMPLETION_REGISTRY.get(cmd)
+    if not script_path:
+        return []
 
-    for completion in COMPLETION_REGISTRY:
-        if completion.startswith(cmplt):
-            matches.append((completion, COMPLETION_REGISTRY[completion]))
+    try:
+        result = subprocess.run([script_path], capture_output=True, text=True)
+    except OSError:
+        return []
 
-    if len(matches) == 1:
-        cmd, path = matches[0][0], matches[0][1]
-        res = subprocess.run([path], capture_output=True, text=True)
-        res = res.stdout.strip("\n").strip()
-
-    return [res]
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
 class CommandCompleter:
@@ -103,10 +101,10 @@ class CommandCompleter:
         if state == 0:
             kind, cmd = get_completion_kind(text)
 
-            if kind == "command":
-                self.matches = complete_commands(text)
-            elif kind == "completion":
+            if kind == "completion":
                 self.matches = execute_completion(cmd)
+            elif kind == "command":
+                self.matches = complete_commands(text)
             else:
                 self.matches = complete_paths(
                     text,

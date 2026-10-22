@@ -9,30 +9,7 @@ from app.utils import (
     get_builtin_cb,
     is_executable,
     run_executable,
-    get_path_dirs,
-    BUILTINS,
 )
-
-def complete_command(text: str, state: int) -> str | None:
-    """Autocomplete supported shell commands."""
-    if readline.get_begidx() != 0:
-        return None
-
-    completions = {builtin for builtin in BUILTINS}
-    
-    executables = set()
-    for dir in get_path_dirs():
-        res = list(os.walk(dir))
-        if res:
-            executables = executables.union(set(res[0][-1]))
-
-    completions = completions.union(executables)
-    matches = [cmd for cmd in completions if cmd.startswith(text)]
-    if matches:
-        return f"{matches[state]} " if state < len(matches) else print("\x07", end="", flush=True)
-    else:
-        sys.stdout.write("\a")
-
 
 def setup_readline() -> None:
     """Configure shell command autocompletion (my mac uses ^I rl_complete)."""
