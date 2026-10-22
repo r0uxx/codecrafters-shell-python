@@ -72,7 +72,7 @@ def cd_builtin(cmd: str, arguments:list[str], *args, **kwargs) -> None:
     return print(f"{cmd}: {path}: No such file or directory")
 
 def complete_builtin(cmd: str, arguments: list[str], **kwargs) -> None:
-    """To implement at a later stage."""
+    """Allow programmable completion."""
     if not arguments:
         return print(f"Error")
 
@@ -90,6 +90,10 @@ def complete_builtin(cmd: str, arguments: list[str], **kwargs) -> None:
         COMPLETION_REGISTRY.pop(arguments[1])
         return
 
+def jobs_builtin(*args, **kwargs) -> None:
+    """Implement later."""
+    ...
+
 
 # Dictionairy of supported commands and their corresponding callbacks
 BUILTINS = {
@@ -99,6 +103,7 @@ BUILTINS = {
     "pwd": pwd_builtin,
     "cd": cd_builtin,
     "complete": complete_builtin,
+    "jobs": jobs_builtin,
 }
 
 def get_builtin_cb(cmd: str) -> Callable | None:
