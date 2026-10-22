@@ -1,7 +1,8 @@
 import os
 import readline
+import subprocess
 
-from app.utils import BUILTINS, get_path_dirs
+from app.utils import BUILTINS, COMPLETION_REGISTRY, get_path_dirs
 
 
 def get_executable_names() -> set[str]:
@@ -19,21 +20,25 @@ def get_executable_names() -> set[str]:
 
     return executables
 
-def get_completion_kind(text: str) -> str:
+def get_completion_kind(text: str) -> tuple[str, str]:
     """Determine what kind of completion is needed."""
     line_before_word = readline.get_line_buffer()[:readline.get_begidx()]
     previous_words = line_before_word.split()
 
     if not previous_words:
-        return "path" if "/" in text else "command"
+        res = "path" if "/" in text else "command"
+        return res, ""
 
     if len(previous_words) == 1 and previous_words[0] == "type":
-        return "command"
+        return "command", ""
 
     if previous_words[0] == "cd":
-        return "directory"
+        return "directory", ""
 
-    return "path"
+    if len(previous_words) == 1 and line_before_word.endswith(" "):
+        return "completion", previous_words[0]
+
+    return "path", ""
 
 
 def complete_commands(prefix: str) -> list[str]:
@@ -74,16 +79,34 @@ def complete_paths(
     return sorted(matches)
 
 
+def execute_completion(cmplt: str) -> list[str]:
+    matches = []
+    res = ""
+
+    for completion in COMPLETION_REGISTRY:
+        if completion.startswith(cmplt):
+            matches.append((completion, COMPLETION_REGISTRY[completion]))
+
+    if len(matches) == 1:
+        cmd, path = matches[0][0], matches[0][1]
+        res = subprocess.run([path], capture_output=True, text=True)
+        res = res.stdout.strip("\n").strip()
+
+    return [res]
+
+
 class CommandCompleter:
     def __init__(self) -> None:
         self.matches: list[str] = []
 
     def __call__(self, text: str, state: int) -> str | None:
         if state == 0:
-            kind = get_completion_kind(text)
+            kind, cmd = get_completion_kind(text)
 
             if kind == "command":
                 self.matches = complete_commands(text)
+            elif kind == "completion":
+                self.matches = execute_completion(cmd)
             else:
                 self.matches = complete_paths(
                     text,
