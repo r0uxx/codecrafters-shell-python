@@ -87,9 +87,9 @@ def execute_completion(cmd: str) -> list[str]:
 
     line = readline.get_line_buffer().split()
     w_at_cursor = line[-1]
-    w_before_cursos = "" if len(line) <= 2 else line[-2]
+    w_before_cursor = "" if len(line) <= 2 else line[-2]
     try:
-        result = subprocess.run([script_path, cmd, w_at_cursor, w_before_cursos], capture_output=True, text=True)
+        result = subprocess.run([script_path, cmd, w_at_cursor, w_before_cursor], capture_output=True, text=True)
     except OSError:
         return []
 
