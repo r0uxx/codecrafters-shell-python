@@ -4,6 +4,7 @@ import functools
 
 from typing import Callable
 from app.completion import CommandCompleter
+from app.job_manager import JobManager
 from contextlib import redirect_stdout
 from app.parser import parse_command
 from app.utils import (
@@ -62,6 +63,7 @@ def construct_callback(cmd: str, args: list[str], job: bool = False, stdout=None
 def main():
     """Main shell loop."""
     setup_readline()
+    job_manager = JobManager()
     while True:
         shell_input = input("$ ").strip()
         if not shell_input:
@@ -90,6 +92,8 @@ def main():
 
         except OSError as e:
             print(f"shell: {e}", file=sys.stderr)
+
+        job_manager.reap()
 
 
 if __name__ == "__main__":

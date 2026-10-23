@@ -147,3 +147,15 @@ class JobManager(metaclass=SingletonMeta):
         }
         self._refresh()
         return job
+
+    def reap(self, to_print: bool = True) -> None:
+        """Reaps jobs with status 'Done'."""
+        deathrow_inmates = set()
+        for job in self.get_jobs():
+            if job.status == "Done":
+                if to_print:
+                    print(job)
+                deathrow_inmates.add(job.id)
+
+        for job_id in deathrow_inmates:
+            self.remove_job(job_id)
