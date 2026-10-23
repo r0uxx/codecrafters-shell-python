@@ -1,6 +1,7 @@
 from subprocess import Popen
 from threading import Lock
 from itertools import count
+from uuid import uuid4
 
 class SingletonMeta(type):
     """
@@ -39,14 +40,17 @@ class SingletonMeta(type):
 
 class Job:
     """A job process"""
+
+    id: str
     number: int
     job_process: Popen
     command: str
     marker: str
     status: str
 
-    def __init__(self, number: int, job_process: Popen,  command: str, marker: str = "+"):
+    def __init__(self, job_id: str, number: int, job_process: Popen,  command: str, marker: str = "+"):
         """Constructor of Job class."""
+        self.id = job_id
         self.number = number
         self.job_process = job_process
         self.command = command
@@ -90,21 +94,25 @@ class JobManager(metaclass=SingletonMeta):
 
     _instance = None
     _jobs: list[Job]
+    _job_lookup: dict[str, int]
 
     def __init__(self):
         self._jobs = []
+        self._job_lookup = {}
         self._job_counter = count(1)
 
     def register_job(self, process: Popen, command: str) -> int:
         """Registers a job."""
+        job_id = str(uuid4())
         job_num = next(self._job_counter)
-        new_job = Job(job_num, process, command=command)
+        new_job = Job(job_id, job_num, process, command=command)
         if self._jobs:
             self._jobs[-1].marker = "-"
             if len(self._jobs) > 1:
                 self._jobs[-2].marker = " "
 
         self._jobs.append(new_job)
+        self._job_lookup[job_id] = len(self._jobs) - 1
         return job_num
 
     def get_jobs(self) -> list[Job]:
@@ -115,3 +123,9 @@ class JobManager(metaclass=SingletonMeta):
     def _refresh(self) -> None:
         """Refreshes all jobs."""
         [job.refresh() for job in self._jobs]
+
+    def remove_job(self, job_id: str) -> Job | None:
+        """Removes/kills a job process."""
+        job_idx = self._job_lookup.get(job_id)
+        if not (job_idx is None):
+            return self._jobs.pop(job_idx)

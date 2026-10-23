@@ -97,8 +97,10 @@ def jobs_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
     job_manager = JobManager()
     job_processes = job_manager.get_jobs()
     for job in job_processes:
-        if "Running" in (represntation := str(job)):
-            print(represntation)
+        represntation = str(job)
+        print(represntation)
+        if "Done" in represntation:
+            job_manager.remove_job(job.id)
 
 
 
@@ -137,6 +139,6 @@ def run_job(cmd: str, arguments: list[str], *args, **kwargs) -> None:
     if cmd and arguments:
         sub_p = subprocess.Popen([cmd] + arguments, *args)
         if sub_p:
-            command = f"{cmd} " + " ".join(arguments) + " &"
+            command = f"{cmd} " + " ".join(arguments)
             job_num = job_manager.register_job(sub_p, command)
             print(f"[{job_num}] {sub_p.pid}")
