@@ -42,28 +42,27 @@ class Job:
     number: int
     job_process: Popen
     command: str
-    most_recent: bool
+    marker: str
     status: str
 
-    def __init__(self, number: int, job_process: Popen,  command: str, most_recent: bool = True):
+    def __init__(self, number: int, job_process: Popen,  command: str, marker: str = "+"):
         """Constructor of Job class."""
         self.number = number
         self.job_process = job_process
         self.command = command
-        self.most_recent = most_recent
+        self.marker = marker
         self.set_status(job_process)
 
     def __str__(self) -> str:
         """String representation of the job."""
-        self._refresh()
+        self.refresh()
         space_to_command = 24
         status = self.status
         spaces = space_to_command - len(status)
-        marker = "+" if self.most_recent else ""
 
-        return f"[{self.number}]{marker}  {status}" + " " * spaces + self.command
+        return f"[{self.number}]{self.marker}  {status}" + " " * spaces + self.command
 
-    def _refresh(self) -> None:
+    def refresh(self) -> None:
         """Polls the process to refresh its returncode."""
         self.job_process.poll()
         self.set_status(self.job_process)
@@ -101,11 +100,18 @@ class JobManager(metaclass=SingletonMeta):
         job_num = next(self._job_counter)
         new_job = Job(job_num, process, command=command)
         if self._jobs:
-            self._jobs[-1].most_recent = False
+            self._jobs[-1].marker = "-"
+            if len(self._jobs) > 1:
+                self._jobs[-2].marker = " "
 
         self._jobs.append(new_job)
         return job_num
 
     def get_jobs(self) -> list[Job]:
         """Returns all registered jobs."""
+        self._refresh()
         return self._jobs
+
+    def _refresh(self) -> None:
+        """Refreshes all jobs."""
+        [job.refresh() for job in self._jobs]
