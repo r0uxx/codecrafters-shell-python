@@ -6,16 +6,17 @@ from typing import Callable, TextIO
 
 PATH = os.getenv("PATH", "")
 COMPLETION_REGISTRY = {}
+JOBS_REGISTRY = {}
 
 def exit_builtin(*args, **kwargs) -> None:
     """Terminates the shell process."""
     sys.exit()
 
-def echo_builtin(cmd: str, arguments: list[str], **kwargs) -> None:
+def echo_builtin(arguments: list[str], *args, **kwargs) -> None:
     """Prints the passed CLI arguments."""
     print(" ".join(arguments))
 
-def type_builtin(cmd: str = "type", arguments: list[str] | None = None, to_print: bool = True, **kwargs) -> str:
+def type_builtin(arguments: list[str] | None = None, to_print: bool = True, *args, **kwargs) -> str:
     """Prints the type of a command."""
     if not arguments or len(arguments) != 1:
         if to_print:
@@ -39,7 +40,7 @@ def type_builtin(cmd: str = "type", arguments: list[str] | None = None, to_print
         print(f"{builtin_or_executable}: not found")
     return "unknown"
 
-def _find_executable_path(cmd: str) -> str:
+def _find_executable_path(cmd: str, *args, **kwargs) -> str:
     """Checks if a command is an Executable by searching the OS PATH env directories."""
     path_dirs = get_path_dirs()
     for dir in path_dirs:
@@ -71,7 +72,7 @@ def cd_builtin(cmd: str, arguments:list[str], *args, **kwargs) -> None:
 
     return print(f"{cmd}: {path}: No such file or directory")
 
-def complete_builtin(cmd: str, arguments: list[str], **kwargs) -> None:
+def complete_builtin(cmd: str, arguments: list[str],*args, **kwargs) -> None:
     """Allow programmable completion."""
     if not arguments:
         return print(f"Error")
@@ -90,7 +91,7 @@ def complete_builtin(cmd: str, arguments: list[str], **kwargs) -> None:
         COMPLETION_REGISTRY.pop(arguments[1])
         return
 
-def jobs_builtin(*args, **kwargs) -> None:
+def jobs_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
     """Implement later."""
     ...
 
@@ -123,3 +124,10 @@ def run_executable(
 ) -> None:
     """Executes a command with optional stdout redirection."""
     subprocess.run([cmd, *args], stdout=stdout, stderr=stderr)
+
+def run_job(cmd: str, arguments: list[str], *args, **kwargs) -> None:
+    """Runs a task in a non blocking subprocess."""
+    if cmd and arguments:
+        sub_p = subprocess.Popen([cmd] + arguments, *args)
+        if sub_p:
+            print(f"[1] {sub_p.pid}")

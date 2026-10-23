@@ -1,7 +1,8 @@
 import sys
 import readline
-import os
+import functools
 
+from typing import Callable
 from app.completion import CommandCompleter
 from contextlib import redirect_stdout
 from app.parser import parse_command
@@ -9,6 +10,7 @@ from app.utils import (
     get_builtin_cb,
     is_executable,
     run_executable,
+    run_job,
 )
 
 def setup_readline() -> None:
@@ -30,20 +32,32 @@ def setup_readline() -> None:
         readline.parse_and_bind("set show-all-if-unmodified off")
         readline.parse_and_bind("set print-completions-horizontally on")
 
-def execute_command(cmd, args, stdout=None, stderr=None):
-    """Executes a builtin or external command."""
+def execute_command(cmd: str, args: list[str], stdout=None, stderr=None) -> None:
+    """Executes a builtin, external or job."""
+    job = bool(args and args[-1] == "&")
+    if job:
+        args.pop(-1)
+
+    cb = construct_callback(cmd, args, job, stdout, stderr)
+    if stdout:
+        with redirect_stdout(stdout):
+            return cb()
+
+    return cb()
+
+def construct_callback(cmd: str, args: list[str], job: bool = False, stdout=None, stderr=None) -> Callable:
+    """Constructs the callback and passes its args, returns the callable to the caller."""
+    if job:
+        return functools.partial(run_job, cmd, args)
 
     if cb := get_builtin_cb(cmd):
-        if stdout is None:
-            cb(cmd, args)
-        else:
-            with redirect_stdout(stdout):
-                cb(cmd, args)
+        return functools.partial(cb, cmd=cmd, arguments=args)
 
     elif is_executable(cmd):
-        run_executable(cmd, args, stdout=stdout, stderr=stderr)
-    else:
-        print(f"{cmd}: command not found", file=sys.stderr)
+        kwargs = {"stdout": stdout, "stderr": stderr}
+        return functools.partial(run_executable, cmd=cmd, args=args, **kwargs)
+
+    return functools.partial(lambda cmd: print(f"{cmd}: command not found", file=sys.stderr), cmd)
 
 def main():
     """Main shell loop."""
