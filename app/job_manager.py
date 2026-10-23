@@ -1,6 +1,5 @@
 from subprocess import Popen
 from threading import Lock
-from itertools import count
 from uuid import uuid4
 
 class SingletonMeta(type):
@@ -99,12 +98,15 @@ class JobManager(metaclass=SingletonMeta):
     def __init__(self):
         self._jobs = []
         self._job_lookup = {}
-        self._job_counter = count(1)
+
+    def _next_job_number(self) -> int:
+        """Returns one more than the highest job number in the table, or 1 if it's empty."""
+        return max((job.number for job in self._jobs), default=0) + 1
 
     def register_job(self, process: Popen, command: str) -> int:
         """Registers a job."""
         job_id = str(uuid4())
-        job_num = next(self._job_counter)
+        job_num = self._next_job_number()
         new_job = Job(job_id, job_num, process, command=command)
 
         self._jobs.append(new_job)
