@@ -1,12 +1,13 @@
 import sys
 import os
 import subprocess
-
 from typing import Callable, TextIO
+
+from app.job_manager import JobManager
+
 
 PATH = os.getenv("PATH", "")
 COMPLETION_REGISTRY = {}
-JOBS_REGISTRY = {}
 
 def exit_builtin(*args, **kwargs) -> None:
     """Terminates the shell process."""
@@ -93,7 +94,12 @@ def complete_builtin(cmd: str, arguments: list[str],*args, **kwargs) -> None:
 
 def jobs_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
     """Implement later."""
-    ...
+    job_manager = JobManager()
+    job_processes = job_manager.get_jobs()
+    for job in job_processes:
+        if "Running" in (represntation := str(job)):
+            print(represntation)
+
 
 
 # Dictionairy of supported commands and their corresponding callbacks
@@ -127,7 +133,10 @@ def run_executable(
 
 def run_job(cmd: str, arguments: list[str], *args, **kwargs) -> None:
     """Runs a task in a non blocking subprocess."""
+    job_manager = JobManager()
     if cmd and arguments:
         sub_p = subprocess.Popen([cmd] + arguments, *args)
         if sub_p:
-            print(f"[1] {sub_p.pid}")
+            command = f"{cmd} " + " ".join(arguments) + " &"
+            job_num = job_manager.register_job(sub_p, command)
+            print(f"[{job_num}] {sub_p.pid}")
