@@ -94,15 +94,15 @@ def complete_builtin(cmd: str, arguments: list[str],*args, **kwargs) -> None:
 
 def jobs_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
     """Implement later."""
-    job_manager = JobManager()
-    job_processes = job_manager.get_jobs()
-    for job in job_processes:
-        represntation = str(job)
-        print(represntation)
-        if "Done" in represntation:
-            job_manager.remove_job(job.id)
+    manager = JobManager()
+    to_reap = set()
+    for job in manager.get_jobs():
+        print(job)
+        if job.status == "Done":
+            to_reap.add(job.id)
 
-
+    for job_id in to_reap:
+        manager.remove_job(job_id)
 
 # Dictionairy of supported commands and their corresponding callbacks
 BUILTINS = {

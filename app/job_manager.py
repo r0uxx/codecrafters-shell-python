@@ -106,26 +106,44 @@ class JobManager(metaclass=SingletonMeta):
         job_id = str(uuid4())
         job_num = next(self._job_counter)
         new_job = Job(job_id, job_num, process, command=command)
-        if self._jobs:
-            self._jobs[-1].marker = "-"
-            if len(self._jobs) > 1:
-                self._jobs[-2].marker = " "
 
         self._jobs.append(new_job)
         self._job_lookup[job_id] = len(self._jobs) - 1
+
+        self._refresh()
         return job_num
 
     def get_jobs(self) -> list[Job]:
-        """Returns all registered jobs."""
+        """Returns a snapshot of all registered jobs, safe to iterate while removing."""
         self._refresh()
         return self._jobs
 
     def _refresh(self) -> None:
         """Refreshes all jobs."""
-        [job.refresh() for job in self._jobs]
+        for job in self._jobs:
+            job.refresh()
+            job.marker = " "
 
-    def remove_job(self, job_id: str) -> Job | None:
-        """Removes/kills a job process."""
+        if self._jobs:
+            self._jobs[-1].marker = "+"
+            if len(self._jobs) > 1:
+                self._jobs[-2].marker = "-"
+
+    def get_job(self, job_id: str) -> Job | None:
+        """Returns a job if found."""
         job_idx = self._job_lookup.get(job_id)
         if not (job_idx is None):
-            return self._jobs.pop(job_idx)
+            return self._jobs[job_idx]
+
+    def remove_job(self, job_id: str) -> Job | None:
+        """Removes a job."""
+        idx = self._job_lookup.pop(job_id, None)
+        if idx is None:
+            return None
+
+        job = self._jobs.pop(idx)
+        self._job_lookup = {
+            job.id: i for i, job in enumerate(self._jobs)
+        }
+        self._refresh()
+        return job
