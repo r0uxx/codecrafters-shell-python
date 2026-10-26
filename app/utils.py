@@ -11,6 +11,7 @@ from app.job_manager import JobManager
 
 PATH = os.getenv("PATH", "")
 COMPLETION_REGISTRY = {}
+HISTORY: list[str] = []
 
 def exit_builtin(*args, **kwargs) -> None:
     """Terminates the shell process."""
@@ -102,6 +103,15 @@ def jobs_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
         print(job)
     manager.reap(to_print=False)
 
+def history_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
+    """Lists previously executed commands, optionally only the last n (`history n`)."""
+    start = 0
+    if arguments and arguments[0].isdigit():
+        start = max(len(HISTORY) - int(arguments[0]), 0)
+
+    for number, line in enumerate(HISTORY[start:], start=start + 1):
+        print(f"{number:>5}  {line}")
+
 # Dictionairy of supported commands and their corresponding callbacks
 BUILTINS = {
     "exit": exit_builtin,
@@ -111,6 +121,7 @@ BUILTINS = {
     "cd": cd_builtin,
     "complete": complete_builtin,
     "jobs": jobs_builtin,
+    "history": history_builtin,
 }
 
 def get_builtin_cb(cmd: str) -> Callable | None:
