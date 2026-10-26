@@ -1,7 +1,10 @@
+import io
 import sys
 import os
 import subprocess
-from typing import Callable, TextIO
+import threading
+from contextlib import redirect_stdout
+from typing import IO, Callable, TextIO
 
 from app.job_manager import JobManager
 
@@ -128,14 +131,49 @@ def run_executable(
     """Executes a command with optional stdout redirection."""
     subprocess.run([cmd, *args], stdout=stdout, stderr=stderr)
 
+def _write_and_close(fd: int, data: str) -> None:
+    """Writes data into a pipe's write end, then closes it so the reader sees EOF."""
+    try:
+        with os.fdopen(fd, "w") as pipe:
+            pipe.write(data)
+    except BrokenPipeError:
+        pass  # The reader exited early (e.g. `head`), nothing left to do
+
+def _run_piped_builtin(builtin: Callable, cmd: str, args: list[str], is_last: bool) -> IO | None:
+    """
+    Runs a builtin inside the shell process.
+    Returns a readable pipe holding its output, or None if it's last and printed to the terminal.
+    """
+    if is_last:
+        builtin(cmd=cmd, arguments=args)
+        sys.stdout.flush()
+        return None
+
+    buffer = io.StringIO()
+    with redirect_stdout(buffer):
+        builtin(cmd=cmd, arguments=args)
+
+    # Write from a thread, so output larger than the pipe buffer can't block the shell
+    read_fd, write_fd = os.pipe()
+    threading.Thread(target=_write_and_close, args=(write_fd, buffer.getvalue()), daemon=True).start()
+    return os.fdopen(read_fd)
+
 def run_pipeline(commands: list[list[str]]) -> None:
-    """Runs external commands with each one's stdout piped into the next one's stdin."""
+    """Runs commands with each one's stdout piped into the next one's stdin."""
     processes = []
     prev_stdout = None
 
     for i, (cmd, *args) in enumerate(commands):
         is_first = i == 0
         is_last = i == len(commands) - 1
+
+        if builtin := get_builtin_cb(cmd):
+            # Builtins don't read stdin, so the incoming pipe is just closed
+            if prev_stdout:
+                prev_stdout.close()
+
+            prev_stdout = _run_piped_builtin(builtin, cmd, args, is_last)
+            continue
 
         # If the previous command failed to start, give this one an empty stdin
         stdin = prev_stdout if prev_stdout or is_first else subprocess.DEVNULL
