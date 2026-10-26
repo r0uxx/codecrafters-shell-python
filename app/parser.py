@@ -1,5 +1,39 @@
 import shlex
 
+def split_pipeline(line: str) -> list[str]:
+    """Splits a line on unquoted, unescaped `|` into pipeline segments."""
+    segments = []
+    quote = None
+    escaped = False
+    start = 0
+
+    for i, char in enumerate(line):
+        if escaped:
+            escaped = False
+            continue
+
+        if char == "\\" and quote != "'":
+            escaped = True
+            continue
+
+        if char in ("'", '"'):
+            if quote is None:
+                quote = char
+            elif quote == char:
+                quote = None
+            continue
+
+        if char == "|" and quote is None:
+            segments.append(line[start:i].strip())
+            start = i + 1
+
+    segments.append(line[start:].strip())
+
+    if len(segments) > 1 and not all(segments):
+        raise ValueError("syntax error near unexpected token `|'")
+
+    return segments
+
 def parse_command(line: str) -> tuple[list[str], str | None, str, str]:
     """Parses a command and optional stdout redirection."""
     quote = None

@@ -128,6 +128,39 @@ def run_executable(
     """Executes a command with optional stdout redirection."""
     subprocess.run([cmd, *args], stdout=stdout, stderr=stderr)
 
+def run_pipeline(commands: list[list[str]]) -> None:
+    """Runs external commands with each one's stdout piped into the next one's stdin."""
+    processes = []
+    prev_stdout = None
+
+    for i, (cmd, *args) in enumerate(commands):
+        is_first = i == 0
+        is_last = i == len(commands) - 1
+
+        # If the previous command failed to start, give this one an empty stdin
+        stdin = prev_stdout if prev_stdout or is_first else subprocess.DEVNULL
+        try:
+            process = subprocess.Popen(
+                [cmd, *args],
+                stdin=stdin,
+                stdout=None if is_last else subprocess.PIPE,
+            )
+        except FileNotFoundError:
+            print(f"{cmd}: command not found", file=sys.stderr)
+            process = None
+
+        # Drop our copy of the read end, so only the next command holds it.
+        # Without this, the writer never gets SIGPIPE when the reader exits (e.g. `tail -f | head`).
+        if prev_stdout:
+            prev_stdout.close()
+
+        prev_stdout = process.stdout if process else None
+        if process:
+            processes.append(process)
+
+    for process in processes:
+        process.wait()
+
 def run_job(cmd: str, arguments: list[str], *args, **kwargs) -> None:
     """Runs a task in a non blocking subprocess."""
     job_manager = JobManager()

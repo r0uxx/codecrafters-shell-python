@@ -1,4 +1,5 @@
 import sys
+import shlex
 import readline
 import functools
 
@@ -6,12 +7,13 @@ from typing import Callable
 from app.completion import CommandCompleter
 from app.job_manager import JobManager
 from contextlib import redirect_stdout
-from app.parser import parse_command
+from app.parser import parse_command, split_pipeline
 from app.utils import (
     get_builtin_cb,
     is_executable,
     run_executable,
     run_job,
+    run_pipeline,
 )
 
 def setup_readline() -> None:
@@ -70,6 +72,12 @@ def main():
             continue
 
         try:
+            segments = split_pipeline(shell_input)
+            if len(segments) > 1:
+                run_pipeline([shlex.split(segment) for segment in segments])
+                job_manager.reap()
+                continue
+
             tokens, output_path, std_kwarg, file_mode = parse_command(shell_input)
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
