@@ -141,6 +141,9 @@ def history_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
     for number, line in enumerate(HISTORY[start:], start=start + 1):
         print(f"{number:>5}  {line}")
 
+def declare_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
+    ...
+
 # Dictionairy of supported commands and their corresponding callbacks
 BUILTINS = {
     "exit": exit_builtin,
@@ -151,6 +154,7 @@ BUILTINS = {
     "complete": complete_builtin,
     "jobs": jobs_builtin,
     "history": history_builtin,
+    "declare": declare_builtin,
 }
 
 def get_builtin_cb(cmd: str) -> Callable | None:
