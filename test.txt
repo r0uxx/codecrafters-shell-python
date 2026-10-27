@@ -1,5 +1,0 @@
-adding some text to text file
-
-echo strawberry blueberry razpberry
-
-history

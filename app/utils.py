@@ -107,15 +107,22 @@ def history_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
     """Lists previously executed commands, optionally only the last n (`history n`)."""
     start = 0
     if arguments:
-        if arguments[0].isdigit():
+        if (flag := arguments[0]).isdigit():
             start = max(len(HISTORY) - int(arguments[0]), 0)
 
-        elif arguments[0] == "-r":
+        elif flag == "-r":
             file_path = arguments[-1]
             with open(file_path, "r", encoding="utf-8") as file:
                 for line in file:
                     if line != "\n":
                         HISTORY.append(line.strip())
+                return
+
+        elif flag == "-w":
+            file_path = arguments[-1]
+            with open(file_path, "w", encoding="utf-8") as file:
+                for command in HISTORY:
+                    file.write(f"{command}\n")
                 return
 
     for number, line in enumerate(HISTORY[start:], start=start + 1):
