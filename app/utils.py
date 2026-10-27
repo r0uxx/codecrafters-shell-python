@@ -142,7 +142,7 @@ def history_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
         print(f"{number:>5}  {line}")
 
 def declare_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
-    ...
+    print(f"{cmd}: missing_variable: not found")
 
 # Dictionairy of supported commands and their corresponding callbacks
 BUILTINS = {
