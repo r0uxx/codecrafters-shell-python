@@ -121,8 +121,7 @@ def history_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
         elif flag == "-w":
             file_path = arguments[-1]
             with open(file_path, "w", encoding="utf-8") as file:
-                for command in HISTORY:
-                    file.write(f"{command}\n")
+                file.write(f"\n".join(HISTORY) + "\n")
                 return
 
     for number, line in enumerate(HISTORY[start:], start=start + 1):
