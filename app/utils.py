@@ -143,7 +143,7 @@ def history_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
 
 def declare_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
     if arguments:
-        print(f"{cmd}: {arguments[0]}: not found")
+        print(f"{cmd}: {arguments[-1]}: not found")
 
 # Dictionairy of supported commands and their corresponding callbacks
 BUILTINS = {
