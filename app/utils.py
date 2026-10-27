@@ -15,6 +15,7 @@ HISTORY: list[str] = []
 
 def exit_builtin(*args, **kwargs) -> None:
     """Terminates the shell process."""
+    save_history()
     sys.exit()
 
 def echo_builtin(arguments: list[str], *args, **kwargs) -> None:
@@ -253,3 +254,10 @@ def load_history() -> None:
     histfile_path = os.getenv("HISTFILE")
     if histfile_path:
         history_builtin("history", ["-r", histfile_path])
+
+def save_history(append: bool = False) -> None:
+    """Loads history from HISTFILE in memory."""
+    flag = "-a" if append else "-w"
+    histfile_path = os.getenv("HISTFILE")
+    if histfile_path:
+        history_builtin("history", [flag, histfile_path])
