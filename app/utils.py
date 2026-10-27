@@ -124,6 +124,19 @@ def history_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
                 file.write(f"\n".join(HISTORY) + "\n")
                 return
 
+        elif flag == "-a":
+            file_path = arguments[-1]
+            current, *older = HISTORY[::-1]
+            commands_to_write = [current]
+            for command in older:
+                if command.startswith("history -a"):
+                    break
+                commands_to_write.append(command)
+
+            with open(file_path, "a", encoding="utf-8") as file:
+                file.write(f"\n".join(commands_to_write[::-1]) + "\n")
+            return
+
     for number, line in enumerate(HISTORY[start:], start=start + 1):
         print(f"{number:>5}  {line}")
 
