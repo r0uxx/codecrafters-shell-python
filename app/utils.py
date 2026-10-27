@@ -255,9 +255,8 @@ def load_history() -> None:
     if histfile_path:
         history_builtin("history", ["-r", histfile_path])
 
-def save_history(append: bool = False) -> None:
+def save_history() -> None:
     """Loads history from HISTFILE in memory."""
-    flag = "-a" if append else "-w"
     histfile_path = os.getenv("HISTFILE")
     if histfile_path:
-        history_builtin("history", [flag, histfile_path])
+        history_builtin("history", ["-w", histfile_path])
