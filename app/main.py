@@ -15,6 +15,7 @@ from app.utils import (
     run_executable,
     run_job,
     run_pipeline,
+    load_history
 )
 
 def setup_readline() -> None:
@@ -67,6 +68,8 @@ def main():
     """Main shell loop."""
     setup_readline()
     job_manager = JobManager()
+    load_history()
+
     while True:
         shell_input = input("$ ").strip()
         if not shell_input:

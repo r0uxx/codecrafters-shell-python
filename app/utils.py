@@ -247,3 +247,9 @@ def run_job(cmd: str, arguments: list[str], *args, **kwargs) -> None:
             command = f"{cmd} " + " ".join(arguments)
             job_num = job_manager.register_job(sub_p, command)
             print(f"[{job_num}] {sub_p.pid}")
+
+def load_history() -> None:
+    """Loads history from HISTFILE in memory."""
+    histfile_path = os.getenv("HISTFILE")
+    if histfile_path:
+        history_builtin("history", ["-r", histfile_path])
