@@ -12,6 +12,7 @@ from app.job_manager import JobManager
 PATH = os.getenv("PATH", "")
 COMPLETION_REGISTRY = {}
 HISTORY: list[str] = []
+SHELL_VARIABLES = {}
 
 def exit_builtin(*args, **kwargs) -> None:
     """Terminates the shell process."""
@@ -143,7 +144,16 @@ def history_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
 
 def declare_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
     if arguments:
-        print(f"{cmd}: {arguments[-1]}: not found")
+        if (flag := arguments[0]) not in {"-p"}:
+            name, value = flag.split("=")
+            SHELL_VARIABLES[name] = value
+
+        if flag == "-p":
+            if (var_name := arguments[-1]) in SHELL_VARIABLES:
+                print(f'declare -- {var_name}="{SHELL_VARIABLES[var_name]}"')
+                return
+
+            print(f"{cmd}: {arguments[-1]}: not found")
 
 # Dictionairy of supported commands and their corresponding callbacks
 BUILTINS = {
