@@ -106,8 +106,17 @@ def jobs_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
 def history_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
     """Lists previously executed commands, optionally only the last n (`history n`)."""
     start = 0
-    if arguments and arguments[0].isdigit():
-        start = max(len(HISTORY) - int(arguments[0]), 0)
+    if arguments:
+        if arguments[0].isdigit():
+            start = max(len(HISTORY) - int(arguments[0]), 0)
+
+        elif arguments[0] == "-r":
+            file_path = arguments[-1]
+            with open(file_path, "r", encoding="utf-8") as file:
+                for line in file:
+                    if line != "\n":
+                        HISTORY.append(line.strip())
+                return
 
     for number, line in enumerate(HISTORY[start:], start=start + 1):
         print(f"{number:>5}  {line}")
