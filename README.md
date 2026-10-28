@@ -1,5 +1,21 @@
 [![progress-banner](https://backend.codecrafters.io/progress/shell/fff8df29-662f-4417-87e5-2afcc9ee9635)](https://app.codecrafters.io/users/hedgehog-755?r=2qF)
 
+# Try it
+
+Ready-to-run executables for Linux, macOS and Windows, no Python needed, are on
+[r0uxx/codecrafters-shell-builds](https://github.com/r0uxx/codecrafters-shell-builds#download).
+On Linux or macOS this downloads and starts it:
+
+```sh
+curl -fsSL "https://github.com/r0uxx/codecrafters-shell-builds/releases/latest/download/codecrafters-shell-$(uname -s | tr A-Z a-z | sed s/darwin/macos/)-$(uname -m | sed s/aarch64/arm64/).tar.gz" | tar -xz && ./codecrafters-shell
+```
+
+Or from source with [uv](https://docs.astral.sh/uv/): `uv run -m app.main`.
+
+It supports builtins (`cd`, `pwd`, `echo`, `type`, `history`, `jobs`, `declare`, `complete`, `tac`, `rickroll`),
+external programs, pipes, redirects, quoting, `$VAR`/`${VAR}` expansion, background jobs, history files
+and tab completion, including programmable completion.
+
 This is a starting point for Python solutions to the
 ["Build Your Own Shell" Challenge](https://app.codecrafters.io/courses/shell/overview).
 
