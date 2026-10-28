@@ -111,8 +111,8 @@ def run_line(shell_input: str) -> None:
         print(f"shell: {e}", file=sys.stderr)
 
 def get_prompt() -> str:
-    """Shows the current directory (home as ~) before the $, only in the built executable so the tests still see "$ "."""
-    if not getattr(sys, "frozen", False):
+    """Shows the current directory (home as ~) before the $. The CodeCrafters run scripts set PLAIN_PROMPT, the tests expect "$ "."""
+    if os.environ.get("PLAIN_PROMPT"):
         return "$ "
 
     cwd = os.getcwd()
