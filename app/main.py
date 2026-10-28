@@ -1,13 +1,12 @@
 import sys
-import shlex
 import readline
 import functools
 
 from typing import Callable
 from app.completion import CommandCompleter
 from app.job_manager import JobManager
-from contextlib import redirect_stdout
-from app.parser import expand_variables, parse_command, split_pipeline
+from contextlib import ExitStack, redirect_stdout
+from app.parser import parse_line
 from app.utils import (
     HISTORY,
     SHELL_VARIABLES,
@@ -77,34 +76,29 @@ def main():
             continue
 
         HISTORY.append(shell_input)
-        shell_input = expand_variables(shell_input, SHELL_VARIABLES)
-
         try:
-            segments = split_pipeline(shell_input)
-            if len(segments) > 1:
-                run_pipeline([shlex.split(segment) for segment in segments])
-                job_manager.reap()
-                continue
-
-            tokens, output_path, std_kwarg, file_mode = parse_command(shell_input)
+            commands = parse_line(shell_input, SHELL_VARIABLES)
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             continue
 
-        if not tokens:
+        if len(commands) > 1:
+            run_pipeline([command.argv for command in commands])
+            job_manager.reap()
             continue
 
-        keyword, *args = tokens
-        try:
-            if output_path is not None:
-                with open(output_path, file_mode, encoding="utf-8") as file:
-                    kwargs = {}
-                    if std_kwarg:
-                        kwargs[std_kwarg] = file
+        if not commands or not commands[0].argv:
+            continue
 
-                    execute_command(keyword, args, **kwargs)
-            else:
-                execute_command(keyword, args)
+        command = commands[0]
+        keyword, *args = command.argv
+        try:
+            with ExitStack() as stack:
+                streams = {
+                    redirect.stream: stack.enter_context(open(redirect.path, redirect.mode, encoding="utf-8"))
+                    for redirect in command.redirects
+                }
+                execute_command(keyword, args, **streams)
 
         except OSError as e:
             print(f"shell: {e}", file=sys.stderr)
