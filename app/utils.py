@@ -94,10 +94,10 @@ def pwd_builtin(*args, **kwargs) -> None:
 
 def cd_builtin(cmd: str, arguments:list[str], *args, **kwargs) -> None:
     """Changes current working directory."""
-    if len(arguments) != 1:
+    if len(arguments) > 1:
         return print(f"Error: unexpected arguments: {arguments}, only pass the directory you want to change to.")
 
-    path = os.path.expanduser(arguments[0])
+    path = os.path.expanduser(arguments[0] if arguments else "~")
 
     if os.path.isdir(path):
         return os.chdir(path)

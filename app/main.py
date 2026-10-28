@@ -1,3 +1,4 @@
+import os
 import sys
 import functools
 
@@ -20,7 +21,7 @@ from app.utils import (
     run_executable,
     run_job,
     run_pipeline,
-    load_history
+    load_history,
 )
 
 def setup_readline() -> None:
@@ -109,6 +110,17 @@ def run_line(shell_input: str) -> None:
     except OSError as e:
         print(f"shell: {e}", file=sys.stderr)
 
+def get_prompt() -> str:
+    """Shows the current directory (home as ~) before the $, only in the built executable so the tests still see "$ "."""
+    if not getattr(sys, "frozen", False):
+        return "$ "
+
+    cwd = os.getcwd()
+    home = os.path.expanduser("~")
+    if cwd == home or cwd.startswith(home + os.sep):
+        cwd = "~" + cwd[len(home):]
+    return f"{cwd} $ "
+
 def main():
     """Main shell loop."""
     setup_readline()
@@ -117,7 +129,7 @@ def main():
 
     while True:
         try:
-            shell_input = input("$ ").strip()
+            shell_input = input(get_prompt()).strip()
         except EOFError:
             print()
             exit_builtin()
