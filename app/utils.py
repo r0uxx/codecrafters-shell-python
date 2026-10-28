@@ -145,7 +145,10 @@ def history_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
 def declare_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
     if arguments:
         if (flag := arguments[0]) not in {"-p"}:
-            name, value = flag.split("=")
+            name, _, value = flag.partition("=")
+            if not (name.isascii() and name.isidentifier()):
+                return print(f"{cmd}: `{flag}': not a valid identifier", file=sys.stderr)
+
             SHELL_VARIABLES[name] = value
 
         if flag == "-p":
