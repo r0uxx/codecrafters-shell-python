@@ -1,6 +1,10 @@
 import sys
-import readline
 import functools
+
+try:
+    import readline
+except Exception:
+    readline = None
 
 from typing import Callable
 from app.completion import CommandCompleter
@@ -10,6 +14,7 @@ from app.parser import parse_line
 from app.utils import (
     HISTORY,
     SHELL_VARIABLES,
+    exit_builtin,
     get_builtin_cb,
     is_executable,
     run_executable,
@@ -20,6 +25,9 @@ from app.utils import (
 
 def setup_readline() -> None:
     """Configure shell command autocompletion (my mac uses ^I rl_complete)."""
+    if readline is None:
+        return
+
     readline.set_completer(CommandCompleter())
     readline.set_completer_delims(" \t\n")
 
@@ -30,14 +38,23 @@ def setup_readline() -> None:
 
     if is_libedit:
         readline.parse_and_bind("bind ^I rl_complete")
-    else:
-        readline.parse_and_bind("tab: complete")
-        readline.parse_and_bind("set bell-style audible")
-        readline.parse_and_bind("set show-all-if-ambiguous off")
-        readline.parse_and_bind("set show-all-if-unmodified off")
-        readline.parse_and_bind("set print-completions-horizontally on")
+        return
 
-def execute_command(cmd: str, args: list[str], stdout=None, stderr=None) -> None:
+    bindings = [
+        "tab: complete",
+        "set bell-style audible",
+        "set show-all-if-ambiguous off",
+        "set show-all-if-unmodified off",
+        "set print-completions-horizontally on",
+    ]
+    for binding in bindings:
+        # pyreadline3 (Windows) doesn't support every GNU readline setting, skip the ones it rejects
+        try:
+            readline.parse_and_bind(binding)
+        except Exception:
+            continue
+
+def execute_command(cmd: str, args: list[str], stdout=None, stderr=None):
     """Executes a builtin, external or job."""
     job = bool(args and args[-1] == "&")
     if job:
@@ -64,6 +81,34 @@ def construct_callback(cmd: str, args: list[str], job: bool = False, stdout=None
 
     return functools.partial(lambda cmd: print(f"{cmd}: command not found", file=sys.stderr), cmd)
 
+def run_line(shell_input: str) -> None:
+    """Parses and runs one line of input: a single command or a pipeline."""
+    try:
+        commands = parse_line(shell_input, SHELL_VARIABLES)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return
+
+    if len(commands) > 1:
+        run_pipeline([command.argv for command in commands])
+        return
+
+    if not commands or not commands[0].argv:
+        return
+
+    command = commands[0]
+    keyword, *args = command.argv
+    try:
+        with ExitStack() as stack:
+            streams = {
+                redirect.stream: stack.enter_context(open(redirect.path, redirect.mode, encoding="utf-8"))
+                for redirect in command.redirects
+            }
+            execute_command(keyword, args, **streams)
+
+    except OSError as e:
+        print(f"shell: {e}", file=sys.stderr)
+
 def main():
     """Main shell loop."""
     setup_readline()
@@ -71,37 +116,23 @@ def main():
     load_history()
 
     while True:
-        shell_input = input("$ ").strip()
+        try:
+            shell_input = input("$ ").strip()
+        except EOFError:
+            print()
+            exit_builtin()
+        except KeyboardInterrupt:
+            print()
+            continue
+
         if not shell_input:
             continue
 
         HISTORY.append(shell_input)
         try:
-            commands = parse_line(shell_input, SHELL_VARIABLES)
-        except ValueError as e:
-            print(f"Error: {e}", file=sys.stderr)
-            continue
-
-        if len(commands) > 1:
-            run_pipeline([command.argv for command in commands])
-            job_manager.reap()
-            continue
-
-        if not commands or not commands[0].argv:
-            continue
-
-        command = commands[0]
-        keyword, *args = command.argv
-        try:
-            with ExitStack() as stack:
-                streams = {
-                    redirect.stream: stack.enter_context(open(redirect.path, redirect.mode, encoding="utf-8"))
-                    for redirect in command.redirects
-                }
-                execute_command(keyword, args, **streams)
-
-        except OSError as e:
-            print(f"shell: {e}", file=sys.stderr)
+            run_line(shell_input)
+        except KeyboardInterrupt:
+            print()
 
         job_manager.reap()
 

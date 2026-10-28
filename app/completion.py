@@ -1,8 +1,12 @@
 import os
-import readline
 import subprocess
 
-from app.utils import BUILTINS, COMPLETION_REGISTRY, get_path_dirs
+try:
+    import readline
+except Exception:
+    readline = None
+
+from app.utils import BUILTINS, COMPLETION_REGISTRY, get_path_dirs, is_executable_file, popen
 
 
 def get_executable_names() -> set[str]:
@@ -13,7 +17,7 @@ def get_executable_names() -> set[str]:
         try:
             with os.scandir(directory or ".") as entries:
                 for entry in entries:
-                    if entry.is_file() and os.access(entry.path, os.X_OK):
+                    if is_executable_file(entry.path):
                         executables.add(entry.name)
         except OSError:
             continue
@@ -26,7 +30,7 @@ def get_completion_kind(text: str) -> tuple[str, str]:
     previous_words = line_before_word.split()
 
     if not previous_words:
-        res = "path" if "/" in text else "command"
+        res = "path" if os.path.dirname(text) else "command"
         return res, ""
 
     if len(previous_words) == 1 and previous_words[0] == "type":
@@ -71,7 +75,7 @@ def complete_paths(
                     continue
 
                 path = os.path.join(directory, entry.name)
-                matches.append(path + ("/" if is_directory else ""))
+                matches.append(path + (os.sep if is_directory else ""))
 
     except OSError:
         return []
@@ -93,16 +97,19 @@ def execute_completion(cmd: str, text: str) -> list[str]:
         "COMP_POINT": str(readline.get_endidx()),
     }
     try:
-        result = subprocess.run(
+        # popen also makes `.py`/`.cmd` completer scripts work on Windows
+        with popen(
             [script_path, cmd, text, w_before_cursor],
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
             text=True,
             env=env,
-        )
+        ) as process:
+            output, _ = process.communicate()
     except OSError:
         return []
 
-    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return [line.strip() for line in output.splitlines() if line.strip()]
 
 
 class CommandCompleter:
@@ -124,7 +131,7 @@ class CommandCompleter:
                 )
 
             if len(self.matches) == 1:
-                if not self.matches[0].endswith("/"):
+                if not self.matches[0].endswith(os.sep):
                     self.matches[0] += " "
 
         return self.matches[state] if state < len(self.matches) else None

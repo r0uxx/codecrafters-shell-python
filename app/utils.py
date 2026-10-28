@@ -1,8 +1,10 @@
 import io
 import sys
 import os
+import shutil
 import subprocess
 import threading
+import webbrowser
 from contextlib import redirect_stdout
 from typing import IO, Callable, TextIO
 
@@ -13,6 +15,7 @@ PATH = os.getenv("PATH", "")
 COMPLETION_REGISTRY = {}
 HISTORY: list[str] = []
 SHELL_VARIABLES = {}
+RICKROLL_URL = "https://www.youtube.com/watch?v=Aq5WXmQQooo"
 
 def exit_builtin(*args, **kwargs) -> None:
     """Terminates the shell process."""
@@ -48,14 +51,38 @@ def type_builtin(arguments: list[str] | None = None, to_print: bool = True, *arg
     return "unknown"
 
 def _find_executable_path(cmd: str, *args, **kwargs) -> str:
-    """Checks if a command is an Executable by searching the OS PATH env directories."""
-    path_dirs = get_path_dirs()
-    for dir in path_dirs:
-        full_path = os.path.join(dir, cmd)
-        if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-            return full_path
-    
-    return ""
+    """
+    Checks if a command is an Executable by searching the OS PATH env directories.
+    shutil.which knows each OS's rules (the execute bit on POSIX, PATHEXT like `.exe` on Windows).
+    """
+    return shutil.which(cmd, path=PATH) or ""
+
+def is_executable_file(path: str) -> bool:
+    """Checks if a file can be run as a program on this OS."""
+    if not os.path.isfile(path):
+        return False
+
+    if sys.platform == "win32":
+        extensions = os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").upper().split(os.pathsep)
+        return os.path.splitext(path)[1].upper() in extensions
+
+    return os.access(path, os.X_OK)
+
+def popen(argv: list[str], **kwargs) -> subprocess.Popen:
+    """Starts a program, resolving it through PATH first."""
+    path = _find_executable_path(argv[0]) or None
+    if sys.platform != "win32":
+        # argv[0] stays what the user typed, so the program still sees its own name
+        return subprocess.Popen(argv, executable=path, **kwargs)
+
+    # Windows only finds `.exe` files on PATH by itself, so pass the full path (needed for `.cmd`/`.bat`).
+    # `.py` scripts can't be run directly there, they're handed to the Python launcher instead.
+    program = path or argv[0]
+    interpreter = []
+    if program.lower().endswith(".py"):
+        interpreter = [shutil.which("py") or shutil.which("python") or "python"]
+
+    return subprocess.Popen([*interpreter, program, *argv[1:]], **kwargs)
 
 def get_path_dirs() -> list[str]:
     """Returns the path directories."""
@@ -70,9 +97,7 @@ def cd_builtin(cmd: str, arguments:list[str], *args, **kwargs) -> None:
     if len(arguments) != 1:
         return print(f"Error: unexpected arguments: {arguments}, only pass the directory you want to change to.")
 
-    path = arguments[0]
-    if path and path.startswith("~") and len(path) == 1:
-        path = os.getenv("HOME", "")
+    path = os.path.expanduser(arguments[0])
 
     if os.path.isdir(path):
         return os.chdir(path)
@@ -143,6 +168,7 @@ def history_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
         print(f"{number:>5}  {line}")
 
 def declare_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
+    """Declare a variable which can be expanded and passed to commands."""
     if arguments:
         if (flag := arguments[0]) not in {"-p"}:
             name, _, value = flag.partition("=")
@@ -158,6 +184,27 @@ def declare_builtin(cmd: str, arguments: list[str], *args, **kwargs) -> None:
 
             print(f"{cmd}: {arguments[-1]}: not found")
 
+def tac_builtin(cmd: str, arguments: list[str], *args, stdin: IO | None = None, **kwargs) -> None:
+    """Just 'cat', but prints each file's lines in reverse. Reads stdin when given no files or `-`."""
+    for source in arguments or ["-"]:
+        try:
+            if source == "-":
+                text = (stdin or sys.stdin).read()
+            else:
+                with open(source, encoding="utf-8", errors="replace") as file:
+                    text = file.read()
+        except OSError as e:
+            print(f"{cmd}: {source}: {e.strerror}", file=sys.stderr)
+            continue
+
+        for line in reversed(text.splitlines()):
+            print(line)
+
+def rickroll_builtin(*args, **kwargs) -> None:
+    """Never gonna give you up."""
+    if not webbrowser.open(RICKROLL_URL):
+        print(f"No browser found, you'll have to rickroll yourself: {RICKROLL_URL}")
+
 # Dictionairy of supported commands and their corresponding callbacks
 BUILTINS = {
     "exit": exit_builtin,
@@ -169,6 +216,8 @@ BUILTINS = {
     "jobs": jobs_builtin,
     "history": history_builtin,
     "declare": declare_builtin,
+    "tac": tac_builtin,
+    "rickroll": rickroll_builtin,
 }
 
 def get_builtin_cb(cmd: str) -> Callable | None:
@@ -185,9 +234,10 @@ def run_executable(
     args: list[str],
     stdout: TextIO | None = None,
     stderr: TextIO | None = None,
-) -> None:
-    """Executes a command with optional stdout redirection."""
-    subprocess.run([cmd, *args], stdout=stdout, stderr=stderr)
+):
+    """Executes a command with optional stdout redirection, returning its exit code."""
+    with popen([cmd, *args], stdout=stdout, stderr=stderr) as process:
+        return process.wait()
 
 def _write_and_close(fd: int, data: str) -> None:
     """Writes data into a pipe's write end, then closes it so the reader sees EOF."""
@@ -197,19 +247,26 @@ def _write_and_close(fd: int, data: str) -> None:
     except BrokenPipeError:
         pass  # The reader exited early (e.g. `head`), nothing left to do
 
-def _run_piped_builtin(builtin: Callable, cmd: str, args: list[str], is_last: bool) -> IO | None:
+def _run_piped_builtin(builtin: Callable, cmd: str, args: list[str], is_last: bool, stdin: IO | None) -> IO | None:
     """
-    Runs a builtin inside the shell process.
+    Runs a builtin inside the shell process, handing it the previous command's output as `stdin`.
     Returns a readable pipe holding its output, or None if it's last and printed to the terminal.
     """
-    if is_last:
-        builtin(cmd=cmd, arguments=args)
-        sys.stdout.flush()
-        return None
+    if stdin is not None and not isinstance(stdin, io.TextIOBase):
+        stdin = io.TextIOWrapper(stdin, encoding="utf-8", errors="replace")
 
-    buffer = io.StringIO()
-    with redirect_stdout(buffer):
-        builtin(cmd=cmd, arguments=args)
+    try:
+        if is_last:
+            builtin(cmd=cmd, arguments=args, stdin=stdin)
+            sys.stdout.flush()
+            return None
+
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            builtin(cmd=cmd, arguments=args, stdin=stdin)
+    finally:
+        if stdin is not None:
+            stdin.close()
 
     # Write from a thread, so output larger than the pipe buffer can't block the shell
     read_fd, write_fd = os.pipe()
@@ -226,17 +283,13 @@ def run_pipeline(commands: list[list[str]]) -> None:
         is_last = i == len(commands) - 1
 
         if builtin := get_builtin_cb(cmd):
-            # Builtins don't read stdin, so the incoming pipe is just closed
-            if prev_stdout:
-                prev_stdout.close()
-
-            prev_stdout = _run_piped_builtin(builtin, cmd, args, is_last)
+            prev_stdout = _run_piped_builtin(builtin, cmd, args, is_last, stdin=prev_stdout)
             continue
 
         # If the previous command failed to start, give this one an empty stdin
         stdin = prev_stdout if prev_stdout or is_first else subprocess.DEVNULL
         try:
-            process = subprocess.Popen(
+            process = popen(
                 [cmd, *args],
                 stdin=stdin,
                 stdout=None if is_last else subprocess.PIPE,
@@ -261,7 +314,7 @@ def run_job(cmd: str, arguments: list[str], *args, **kwargs) -> None:
     """Runs a task in a non blocking subprocess."""
     job_manager = JobManager()
     if cmd and arguments:
-        sub_p = subprocess.Popen([cmd] + arguments, *args)
+        sub_p = popen([cmd, *arguments])
         if sub_p:
             command = f"{cmd} " + " ".join(arguments)
             job_num = job_manager.register_job(sub_p, command)

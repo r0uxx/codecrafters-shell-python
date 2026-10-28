@@ -2,4 +2,9 @@
 name = "codecrafters-shell"
 version = "0.1.0"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "pyreadline3>=3.5; sys_platform == 'win32'",
+]
+
+[dependency-groups]
+build = ["pyinstaller>=6.22"]

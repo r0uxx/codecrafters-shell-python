@@ -1,0 +1,92 @@
+name: Build executables
+
+# Manual only (Actions tab -> "Build executables" -> "Run workflow"), since `codecrafters submit` pushes every stage
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, name: linux-x86_64 }
+          - { os: macos-15, name: macos-arm64 }
+          - { os: macos-15-intel, name: macos-x86_64 }
+          - { os: windows-latest, name: windows-x86_64 }
+
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      # Signing/notarization only happens when these secrets exist, otherwise macOS builds are unsigned
+      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Import signing certificate
+        if: runner.os == 'macOS' && env.MACOS_CERTIFICATE != ''
+        run: |
+          keychain_password=$(openssl rand -base64 24)
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$keychain_password" build.keychain
+          security set-keychain-settings -lut 3600 build.keychain
+          security unlock-keychain -p "$keychain_password" build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" build.keychain
+          security list-keychains -d user -s build.keychain $(security list-keychains -d user | tr -d '"')
+          rm certificate.p12
+
+          identity=$(security find-identity -v -p codesigning build.keychain | grep -o '"Developer ID Application: [^"]*"' | head -n 1 | tr -d '"')
+          if [ -z "$identity" ]; then
+            echo "::error::No 'Developer ID Application' certificate found in MACOS_CERTIFICATE"
+            exit 1
+          fi
+          echo "CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: uv run --group build python build.py
+
+      - name: Smoke test
+        run: |
+          output=$(printf 'echo hello\ntype tac\necho a b | tac\nexit\n' | ./dist/codecrafters-shell)
+          echo "$output"
+          grep -q "hello" <<< "$output"
+          grep -q "tac is a shell builtin" <<< "$output"
+
+      - name: Notarize
+        if: env.CODESIGN_IDENTITY != ''
+        run: |
+          codesign --verify --strict --verbose=2 dist/codecrafters-shell
+          ditto -c -k --keepParent dist/codecrafters-shell notarize.zip
+          result=$(xcrun notarytool submit notarize.zip --wait --output-format json \
+            --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD")
+          echo "$result"
+          if [ "$(jq -r .status <<< "$result")" != "Accepted" ]; then
+            xcrun notarytool log "$(jq -r .id <<< "$result")" \
+              --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD"
+            exit 1
+          fi
+
+      # A tarball keeps the executable permission, which plain artifact zips lose
+      - name: Package
+        run: |
+          mkdir -p release
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cp dist/codecrafters-shell.exe release/
+          else
+            tar -czf release/codecrafters-shell-${{ matrix.name }}.tar.gz -C dist codecrafters-shell
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codecrafters-shell-${{ matrix.name }}
+          path: release/*
