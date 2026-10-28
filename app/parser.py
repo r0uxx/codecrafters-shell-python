@@ -38,6 +38,25 @@ def _read_variable_name(line: str, start: int) -> str:
     name = line[start:end]
     return "" if not name or name[0].isdigit() else name
 
+def _read_variable_reference(line: str, start: int) -> tuple[str, int]:
+    """
+    Reads the `NAME` or `{NAME}` right after a `$`.
+    Returns the name and how many characters it took up, or ("", 0) if there's no variable here.
+    """
+    if line[start:start + 1] != "{":
+        name = _read_variable_name(line, start)
+        return name, len(name)
+
+    end = line.find("}", start)
+    if end == -1:
+        raise ValueError("unexpected EOF while looking for matching `}'")
+
+    name = line[start + 1:end]
+    if not name or _read_variable_name(name, 0) != name:
+        raise ValueError(f"${line[start:end + 1]}: bad substitution")
+
+    return name, len(name) + 2
+
 def _read_redirect_operator(line: str, start: int, at_word_start: bool) -> str:
     """Reads a redirection operator (`>`, `>>`, `1>`, `2>>`, ...) at `start`, or returns ""."""
     end = start
@@ -53,7 +72,7 @@ def _read_redirect_operator(line: str, start: int, at_word_start: bool) -> str:
 def tokenize(line: str, variables: dict[str, str]) -> list[str]:
     """
     Splits a line into words and Operators in a single pass, like bash:
-    handles quotes and backslashes, and expands `$NAME` (except inside single quotes).
+    handles quotes and backslashes, and expands `$NAME`/`${NAME}` (except inside single quotes).
     """
     tokens: list[str] = []
     word: str | None = None
@@ -110,14 +129,16 @@ def tokenize(line: str, variables: dict[str, str]) -> list[str]:
                 i += 2
             continue
 
-        if char == "$" and (name := _read_variable_name(line, i + 1)):
-            value = variables.get(name, os.environ.get(name, ""))
-            if quote:
-                add(value)
-            else:
-                add_unquoted_expansion(value)
-            i += 1 + len(name)
-            continue
+        if char == "$":
+            name, length = _read_variable_reference(line, i + 1)
+            if name:
+                value = variables.get(name, os.environ.get(name, ""))
+                if quote:
+                    add(value)
+                else:
+                    add_unquoted_expansion(value)
+                i += 1 + length
+                continue
 
         if quote == '"':
             if char == '"':
