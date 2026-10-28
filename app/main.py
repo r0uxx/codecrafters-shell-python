@@ -7,9 +7,10 @@ from typing import Callable
 from app.completion import CommandCompleter
 from app.job_manager import JobManager
 from contextlib import redirect_stdout
-from app.parser import parse_command, split_pipeline
+from app.parser import expand_variables, parse_command, split_pipeline
 from app.utils import (
     HISTORY,
+    SHELL_VARIABLES,
     get_builtin_cb,
     is_executable,
     run_executable,
@@ -76,6 +77,7 @@ def main():
             continue
 
         HISTORY.append(shell_input)
+        shell_input = expand_variables(shell_input, SHELL_VARIABLES)
 
         try:
             segments = split_pipeline(shell_input)
